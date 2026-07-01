@@ -5,7 +5,7 @@ import random
 import sys
 import time
 
-# CONSTANTS
+# CONSTANTS SECTION
 
 TILE_SIZE = 32
 TILES_ACROSS = 35
