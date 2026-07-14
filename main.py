@@ -11,14 +11,19 @@ TILE_SIZE = 32
 TILES_ACROSS = 35
 TILES_DOWN = 20
 
+# window size for the menu
 MENU_LOGICAL_W = 1920
 MENU_LOGICAL_H = 1009
+
+# The game's logical screen size before scaling
 GAME_LOGICAL_W = TILES_ACROSS * TILE_SIZE
 GAME_LOGICAL_H = TILES_DOWN * TILE_SIZE
 
+# set the initial real screen size to the same
 screen_width = GAME_LOGICAL_W
 screen_height = GAME_LOGICAL_H 
 
+# window mode and max FPS
 WINDOWMODE = pygame.RESIZABLE
 FPS = 60
 
@@ -82,18 +87,23 @@ class Button():
         self._down = False
         self._action = None
 
-
+    # Call the action function.
     def click(self):
         if self._action == None:
             print("No action function set for button:", self._text)
         else:
             self._action()
 
+    # Checking if the mouse is inside the button rectangle.
     def contains(self, x, y):
         return self.get_rect().collidepoint(x, y)
     
+    # Returns the button's rectangle.
     def get_rect(self):
         return pygame.Rect(self._x, self._y, self._w, self._h)
+
+    # Inform the button about mouse movements.
+    # Decides whether the mouse is inside or not.
     def mouse_move(self, x, y):
         if not self._disabled:
             if self.contains( x, y):
@@ -101,6 +111,7 @@ class Button():
             else:
                 self._mouse_over = False
 
+    # Check if the mouse is inside and call the action function.
     def mouse_click(self, event):
         if not self._disabled:
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -114,6 +125,7 @@ class Button():
                         print("button", self._text, "has no function set")
                 self._button_down = False
 
+    # Get/Set property methods for the action function.
     def set_action(self, action_function):
         if type(action_function).__name__ == 'function':
             self._action = action_function
@@ -121,6 +133,7 @@ class Button():
         return self._action
     action = property(get_action, set_action)
 
+    # self draw function - requires a screen object to draw to
     def draw(self, screen):
         # draw rectangle
         pygame.draw.rect(screen, self._border_color, self.get_rect())
@@ -143,12 +156,16 @@ class Button():
         rendered_text_rect.center = (self._x + self._w / 2 + offset, self._y + self._h / 2 + offset)
         screen.blit(rendered_text, rendered_text_rect)
 
+# The Snake itself. Contains a list of 
+# segments as tuples of position and direction.
 class Snake():
+    # Indexes into the directional vector list.
     UP = 0
     DOWN = 1
     LEFT = 2
     RIGHT = 3
     
+    # Image index for Snake segments.
     IMG_HEAD = 0
     IMG_BODY = 1
     IMG_TAIL = 2
@@ -161,11 +178,15 @@ class Snake():
 
     DIR = [(0, -1), (0, 1), (-1, 0), ( 1, 0 )]
 
+    # Init function, sets up the Snake
+    # load the images, define the intial three segments, etc
     def __init__(self, x, y):
         self._x = x
         self._y = y
 
+        # Set initial direction.
         self._direction = Snake.RIGHT
+        # make the segments
         self._segments = [(x, y, self._direction), (x - TILE_SIZE, y, self._direction), (x - TILE_SIZE * 2, y, self._direction)] # List of segment positions
 
         self._die = False
@@ -180,9 +201,7 @@ class Snake():
         self._next_frame = time.time()
         self._move_delay = Snake.INITIAL_SPEED
 
-        # make the segments
-
-
+    # Set new direction for Snake but don't allow reversing.
     def change_direction(self, new_direction):
         # prevent reversing
         if (self._direction == Snake.UP and new_direction == Snake.DOWN) or \
@@ -192,27 +211,37 @@ class Snake():
             return
         self._direction = new_direction
 
+    # Moves the Snake by adding a new head and deleting the tail
     def move(self):
+        # If it's time to move 
         if time.time() > self._next_frame:
+            # New head
             new_head = (self._x + Snake.DIR[self._direction][0] * TILE_SIZE, self._y + Snake.DIR[self._direction][1] * TILE_SIZE, self._direction)
             self._segments.insert(Snake.POS_HEAD, new_head)
             if not self._growing: # remove tail unless growing
                 self._segments.pop()
             else:
                 self._growing = False
+            # Update position using directional vectors.
             self._x += Snake.DIR[self._direction][0] * TILE_SIZE
             self._y += Snake.DIR[self._direction][1] * TILE_SIZE
+            # Setting the next time to move.
             self._next_frame = self._next_frame + self._move_delay
 
+    # tell the snake to grow next move/frame
     def grow(self):
         self._growing = True
 
+    # Draw the Snake.
     def draw(self, screen):
+        # Drawing the head and tail.
         screen.blit(self._images[Snake.IMG_HEAD], (self._segments[Snake.POS_HEAD][0], self._segments[Snake.POS_HEAD][1]))
         screen.blit(self._images[Snake.IMG_TAIL], (self._segments[Snake.POS_TAIL][0], self._segments[Snake.POS_TAIL][1]))
-        for segment in self._segments[1:-1]:
+        # Drawing the segments.
+        for segment in self._segments[1:-1]: # List slice giving only the middle elements.
             screen.blit(self._images[Snake.IMG_BODY], (segment[0], segment[1]))
 
+    # Get own rectangle.
     def get_rect(self):
         return pygame.Rect(self._x, self._y, TILE_SIZE, TILE_SIZE)
 
@@ -220,10 +249,13 @@ class Snake():
         # return True if we are touching something else
         return self.get_rect().colliderect(other_rect)
 
+    # Check if the Snake needs to die.
     def death_detect(self, arena_w, arena_h):
+        # Check if the Snake is within the arena.
         arena_rect = pygame.Rect(0, 0, arena_w, arena_h)
         if not self.collide(arena_rect):
             self._die = True
+        # Check if the Snake is touching itself.
         for segment in self._segments[1:]:
             if self.collide(pygame.Rect(segment[0], segment[1], TILE_SIZE, TILE_SIZE)):
                 self._die = True
@@ -237,13 +269,16 @@ class Food():
         self._w = TILE_SIZE
         self.reset()
 
+    # Respawning the food.
     def reset(self):
         self._x = random.randint(0, TILES_ACROSS - 1) * TILE_SIZE
         self._y = random.randint(0, TILES_DOWN - 1) * TILE_SIZE
 
+    # Draw self.
     def draw(self, screen):
         screen.blit(self._image, (self._x, self._y))
 
+    # Return own rectangle.
     def get_rect(self):
         return pygame.Rect(self._x, self._y, self._w, self._h)
 
@@ -252,6 +287,8 @@ class Food():
 # FUNCTION DEFINITIONS
 
 def game_over(canvas, screen, screen_width, screen_height):
+    # Global to allow a cascading exit from
+    # both this loop and the menu's loop.
     global run
 
     # init
@@ -290,6 +327,9 @@ def game_over(canvas, screen, screen_width, screen_height):
 def main_game(screen):
     global screen_width
     global screen_height
+    # Global to allow a cascading exit from
+    # both this loop and the menu's loop.
+    global run
     # init
     canvas = pygame.Surface((GAME_LOGICAL_W, GAME_LOGICAL_H))
     # creating map
@@ -313,8 +353,6 @@ def main_game(screen):
     apple = pygame.transform.scale(pygame.image.load("images\\food\\snak_apple.png").convert_alpha(), (TILE_SIZE, TILE_SIZE))
     food = Food(apple)
 
-    global run
-
     # main loop
     local_run = True
     while local_run:
@@ -324,13 +362,16 @@ def main_game(screen):
         mouse_pos = pygame.mouse.get_pos()
         # process events
         for event in pygame.event.get():
+            # Process window resize
             if event.type == pygame.VIDEORESIZE:
                 screen_width = event.dict['size'][0]
                 screen_height = event.dict['size'][1]
                 screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
+            # Are we quitting
             if event.type == pygame.QUIT:
                 local_run = False
                 run = False
+            # Direction keys
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
                     snake.change_direction(Snake.LEFT)
@@ -404,7 +445,7 @@ if __name__ == "__main__":
     font = pygame.font.Font(DEFAULT_FONT, 24)
 
     # initialising controls
-    controls_dict = {}
+    controls_dict = {} # menu controls in a dictionary for flexibility and efficiency
     controls_dict["settings"]   = Button(500, 820, 250, 100, "SETTINGS", font)
     controls_dict['credits']   = Button(1000, 820, 250, 100, "CREDITS")
     controls_dict['quit']   = Button(1500, 820, 250, 100, "EXIT")
@@ -412,6 +453,8 @@ if __name__ == "__main__":
     play_button_font = pygame.font.SysFont(PLAY_BUTTON_FONT, PLAY_BUTTON_FONT_SIZE)
     controls_dict['start_button'] = Button(950, 480, 300, 300, ' ►', play_button_font, bg_color=pygame.Color(55, 231, 0), border_color=pygame.Color(0, 130, 7))
     controls_dict['start_button'].action = lambda x=screen: main_game(x)
+
+    # Load the images
     menu_snake = pygame.transform.scale(pygame.image.load("images\\menu_images\\menu_snake.png").convert_alpha(), (500, 500))
     snak_title = pygame.transform.scale(pygame.image.load("images\\menu_images\\snak_title.png").convert_alpha(), (1300, 500))
     menu_author = pygame.transform.scale(pygame.image.load("images\\menu_images\\tai_edwards.png").convert_alpha(), (900, 350))
@@ -451,25 +494,16 @@ if __name__ == "__main__":
             if event.type == pygame.MOUSEBUTTONDOWN:
                 settings_menu = True
                 game_state = False
-            else:
-                pass
 
         if controls_dict['credits'].contains(scaled_coords[0], scaled_coords[1]):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 credits_menu = True
                 game_state = False
-            else:
-                pass
 
         if controls_dict['quit'].contains(scaled_coords[0], scaled_coords[1]):
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     print("Successfully exited program.")
                     sys.exit()
-                else:
-                    pass
-
-
-
 
         # process any actions that need to happen every loop
         # blank the screen
